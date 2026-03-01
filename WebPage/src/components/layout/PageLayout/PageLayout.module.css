@@ -1,0 +1,72 @@
+/* Basic layout-only CSS; no colors/typography */
+.root {
+    min-height: 100dvh;
+    display: grid;
+
+    /* Areas:
+       header
+       topnav
+       content (sidebar | main | right)
+       footer
+    */
+    grid-template-rows: auto auto 1fr auto;
+    grid-template-columns: 240px 1fr 320px;
+    grid-template-areas:
+    "header  header  header"
+    "topnav  topnav  topnav"
+    "sidebar main    right"
+    "footer  footer  footer";
+}
+
+/* Landmarks */
+.header { grid-area: header; }
+.topnav { grid-area: topnav; }
+.sidebar { grid-area: sidebar; overflow: auto; }
+.main { grid-area: main; min-width: 0; display: flex; flex-direction: column; }
+.right { grid-area: right; overflow: auto; }
+.footer { grid-area: footer; }
+
+/* Sidebar open/closed states */
+.sidebarOpen { width: 240px; }
+.sidebarClosed { width: 0; overflow: hidden; }
+
+/* Inside main */
+.mainToolbar {
+    flex: 0 0 auto;
+}
+.mainBody {
+    flex: 1 1 auto;
+    min-height: 0; /* allow children to scroll */
+    overflow: auto;
+}
+
+/* Responsive behavior */
+@media (max-width: 1200px) {
+    .root {
+        grid-template-columns: 200px 1fr 280px;
+    }
+}
+
+@media (max-width: 900px) {
+    .root {
+        grid-template-columns: 72px 1fr;           /* collapsed-ish sidebar */
+        grid-template-areas:
+      "header  header"
+      "topnav  topnav"
+      "sidebar main"
+      "footer  footer";
+    }
+    .right { display: none; }                    /* hide right panel on narrow screens */
+}
+
+@media (max-width: 600px) {
+    .root {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+      "header"
+      "topnav"
+      "main"
+      "footer";
+    }
+    .sidebar { display: none; }                  /* fully hide sidebar on mobile */
+}
