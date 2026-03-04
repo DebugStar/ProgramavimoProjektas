@@ -131,22 +131,6 @@ pm2 startup
 
 ---
 
-## Push Changes To Repository
-
-Check changes:
-git status
-
-Add files:
-git add .
-
-Commit:
-git commit -m "Backend update"
-
-Push:
-git push origin main
-
----
-
 ## Future Improvements
 
 - Database integration
