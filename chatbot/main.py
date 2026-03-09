@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from chatbot import get_response
+from .chatbot import get_response
 
 app = FastAPI(title="University Chatbot API")
 
@@ -32,6 +32,7 @@ async def chat(request: ChatRequest):
     Main chat endpoint. The frontend sends a message,
     we return the chatbot's response.
     """
+    #parses incoming JSON into an object
     bot_response = get_response(
         user_message=request.message,
         conversation_history=request.conversation_history,
