@@ -27,7 +27,7 @@ bashpip install -r chatbot/requirements.txt
 Create a .env file in the project root:
 OPENAI_API_KEY=your-api-key-here
 4. Run the server
-bashuvicorn chatbot.main:app --reload --port 8000
+bash uvicorn chatbot.main:app --reload --port 8000
 5. Test
 Open http://localhost:8000/docs in your browser to test the chat endpoint interactively.
 API
