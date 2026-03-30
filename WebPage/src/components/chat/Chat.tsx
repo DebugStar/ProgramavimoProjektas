@@ -10,6 +10,10 @@ export interface ChatMessage {
   role: ChatRole;
   text: string;
   timestamp: number;
+  meta?: {
+    kind?: "error";
+    retryUserText?: string;
+  };
 }
 
 export interface ChatProps {
@@ -57,20 +61,30 @@ export default function Chat({
     setIsLoading(false);
   };
 
-  const handleSend = async () => {
-    const trimmed = input.trim();
-    if (!trimmed || isLoading || sessionId === null) return;
+  const sendMessage = async (
+    userText: string,
+    baseMessages: ChatMessage[],
+    { appendUserBubble }: { appendUserBubble: boolean },
+  ) => {
+    if (isLoading || sessionId === null) return;
 
-    const idAtSend = sessionId;
     const now = Date.now();
-    const userMessage: ChatMessage = {
-      id: `user-${now}`,
-      role: "user",
-      text: trimmed,
-      timestamp: now,
-    };
-    const afterUser = [...messages, userMessage];
-    onMessagesChange(afterUser);
+    const idAtSend = sessionId;
+
+    const afterUser = appendUserBubble
+      ? (() => {
+          const userMessage: ChatMessage = {
+            id: `user-${now}`,
+            role: "user",
+            text: userText,
+            timestamp: now,
+          };
+          const next = [...baseMessages, userMessage];
+          onMessagesChange(next);
+          return next;
+        })()
+      : baseMessages;
+
     setIsLoading(true);
 
     const controller = new AbortController();
@@ -86,7 +100,7 @@ export default function Chat({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: controller.signal,
-        body: JSON.stringify({ message: trimmed, conversation_history: history }),
+        body: JSON.stringify({ message: userText, conversation_history: history }),
       });
       if (!res.ok) {
         throw new Error(`Chat request failed: ${res.status}`);
@@ -115,6 +129,7 @@ export default function Chat({
         role: "assistant",
         text: "Sorry, I couldn't reach the server. Please try again.",
         timestamp: Date.now(),
+        meta: { kind: "error", retryUserText: userText },
       };
       onMessagesChange([...afterUser, errorMessage]);
     } finally {
@@ -123,6 +138,25 @@ export default function Chat({
       // Clear only after submit completes so the field stays readable while loading.
       setInput("");
     }
+  };
+
+  const handleSend = async () => {
+    const trimmed = input.trim();
+    if (!trimmed) return;
+    await sendMessage(trimmed, messages, { appendUserBubble: true });
+  };
+
+  const handleRetry = async (errorMessageId: string) => {
+    if (isLoading || sessionId === null) return;
+    const idx = messages.findIndex((m) => m.id === errorMessageId);
+    const errorMsg = idx >= 0 ? messages[idx] : undefined;
+    const retryUserText = errorMsg?.meta?.retryUserText;
+    if (!retryUserText) return;
+
+    // Keep the conversation "in context": retry using messages up to (but excluding) the error bubble.
+    const baseMessages = messages.slice(0, idx);
+    onMessagesChange(baseMessages);
+    await sendMessage(retryUserText, baseMessages, { appendUserBubble: false });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -212,7 +246,44 @@ export default function Chat({
               {message.role === "assistant" && (
                 <div className="chat-message-name">{CHATBOT_NAME}</div>
               )}
-              <div className="chat-message-text">{message.text}</div>
+              <div
+                className={
+                  "chat-message-text" +
+                  (message.meta?.kind === "error" ? " chat-message-text--error" : "")
+                }
+              >
+                {message.meta?.kind === "error" && (
+                  <span className="chat-error-icon" aria-hidden="true">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M12 8v5" />
+                      <path d="M12 16h.01" />
+                    </svg>
+                  </span>
+                )}
+                <span>{message.text}</span>
+              </div>
+              {message.meta?.kind === "error" && (
+                <div className="chat-error-actions">
+                  <button
+                    type="button"
+                    className="chat-retry"
+                    onClick={() => handleRetry(message.id)}
+                    disabled={isLoading}
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
               <time
                 className="chat-message-time"
                 dateTime={new Date(message.timestamp).toISOString()}

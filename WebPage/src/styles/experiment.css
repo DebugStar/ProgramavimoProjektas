@@ -615,6 +615,48 @@ p, ul, ol {
   white-space: pre-wrap;
 }
 
+.chat-message-text--error {
+  border-color: rgba(239, 68, 68, 0.55);
+  background: rgba(239, 68, 68, 0.08);
+}
+[data-theme="dark"] .chat-message-text--error {
+  border-color: rgba(248, 113, 113, 0.45);
+  background: rgba(248, 113, 113, 0.12);
+}
+.chat-error-icon {
+  display: inline-flex;
+  vertical-align: text-bottom;
+  margin-right: 8px;
+  color: #ef4444;
+}
+[data-theme="dark"] .chat-error-icon {
+  color: #f87171;
+}
+.chat-error-actions {
+  margin-top: 8px;
+}
+.chat-retry {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.10);
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: var(--fs-100);
+  cursor: pointer;
+}
+.chat-retry:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.14);
+}
+.chat-retry:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .chat-message--user .chat-message-text {
   background: #1e293b;
   border-color: #334155;
