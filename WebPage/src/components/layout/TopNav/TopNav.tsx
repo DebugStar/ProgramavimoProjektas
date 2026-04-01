@@ -36,6 +36,9 @@ export function TopNav() {
       <a href="#map" aria-current={isCurrent("map") ? "page" : undefined}>
         MAP
       </a>
+      <a href="#stats" aria-current={isCurrent("stats") ? "page" : undefined}>
+        Stats
+      </a>
       <a href="#faq" aria-current={isCurrent("faq") ? "page" : undefined}>
         FAQ
       </a>

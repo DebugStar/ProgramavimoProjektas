@@ -1,10 +1,11 @@
 import { Suspense, lazy, useEffect, useState } from "react";
 import HomePage from "./pages/Home/HomePage";
 import DocumentPage from "./pages/Document/DocumentPage";
+import StatsPage from "./pages/Stats/StatsPage";
 
 const MapPage = lazy(() => import("./pages/Home/MapPage"));
 
-type Route = "home" | "map" | "documents";
+type Route = "home" | "map" | "documents" | "stats";
 
 function normalizeHash(hash: string): string {
   // Examples:
@@ -18,6 +19,7 @@ function routeFromHash(hash: string): Route {
   if (!h || h === "home") return "home";
   if (h === "map") return "map";
   if (h === "documents" || h === "docs") return "documents";
+  if (h === "stats") return "stats";
   // Unknown hash: keep the app stable by falling back to home.
   return "home";
 }
@@ -56,6 +58,10 @@ export default function App() {
 
   if (route === "documents") {
     return <DocumentPage />;
+  }
+
+  if (route === "stats") {
+    return <StatsPage />;
   }
 
   return <HomePage theme={theme} onToggleTheme={onToggleTheme} />;
