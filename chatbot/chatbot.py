@@ -23,7 +23,6 @@ class HFEmbeddings(Embeddings):
             json={"inputs": texts, "options": {"wait_for_model": True}},
         )
         result = response.json()
-        print(f"HF API response type: {type(result)}, content: {str(result)[:200]}")
         return result
 
     def embed_query(self, text: str) -> list:
