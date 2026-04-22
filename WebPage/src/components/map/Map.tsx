@@ -1,6 +1,13 @@
 import { useEffect } from "react";
+import L from "leaflet";
 import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+
+import markerHouse from "../../assets/house.png";
+import markerFaculty from "../../assets/faculty.png";
+import markerLibrary from "../../assets/library.png";
+
+type BuildingType = "faculty" | "library" | "dorm";
 
 export interface Building {
   id: number;
@@ -8,6 +15,7 @@ export interface Building {
   description: string;
   workingHours: string;
   services: string[];
+  type: BuildingType;
   position: [number, number];
 }
 
@@ -15,7 +23,40 @@ interface MapProps {
   onSelectBuilding: (building: Building) => void;
 }
 
-// 🏫 Buildings
+const houseIcon = L.icon({
+  iconUrl: markerHouse,
+  iconSize: [40, 40],
+  iconAnchor: [20, 40],
+  className: "custom-marker",
+});
+
+const facultyIcon = L.icon({
+  iconUrl: markerFaculty,
+  iconSize: [40, 40],
+  iconAnchor: [20, 40],
+  className: "custom-marker",
+});
+
+const libraryIcon = L.icon({
+  iconUrl: markerLibrary,
+  iconSize: [40, 40],
+  iconAnchor: [20, 40],
+  className: "custom-marker",
+});
+
+function getIcon(type: Building["type"]) {
+  switch (type) {
+    case "faculty":
+      return facultyIcon;
+    case "library":
+      return libraryIcon;
+    case "dorm":
+      return houseIcon;
+    default:
+      return facultyIcon;
+  }
+}
+
 const buildings: Building[] = [
   {
     id: 1,
@@ -30,6 +71,7 @@ const buildings: Building[] = [
       "Renginiai",
       "Konsultacijos",
     ],
+    type: "faculty",
     position: [54.89902014942021, 23.917163524252686],
   },
   {
@@ -44,6 +86,7 @@ const buildings: Building[] = [
       "Karjeros renginiai",
       "Verslo konsultacijos",
     ],
+    type: "faculty",
     position: [54.899015, 23.922272],
   },
   {
@@ -58,6 +101,7 @@ const buildings: Building[] = [
       "Eksperimentai",
       "Praktikos",
     ],
+    type: "faculty",
     position: [54.905103067316574, 23.951561150283638],
   },
   {
@@ -72,6 +116,7 @@ const buildings: Building[] = [
       "Statybos laboratorijos",
       "Seminarai",
     ],
+    type: "faculty",
     position: [54.90585315053022, 23.956139971843],
   },
   {
@@ -86,6 +131,7 @@ const buildings: Building[] = [
       "Praktikos",
       "Paskaitos",
     ],
+    type: "faculty",
     position: [54.90475028329401, 23.956727484865812],
   },
   {
@@ -100,6 +146,7 @@ const buildings: Building[] = [
       "Laboratorijos",
       "Projektai",
     ],
+    type: "faculty",
     position: [54.90392444510232, 23.95780545724072],
   },
   {
@@ -114,14 +161,22 @@ const buildings: Building[] = [
       "Dizaino projektai",
       "Prototipavimas",
     ],
+    type: "faculty",
     position: [54.900992245794654, 23.96044377066373],
+  },
+  {
+  id: 9,
+  name: "KTU Biblioteka",
+  description: "Bibliotekos aprašymas...",
+  workingHours: "I–V 08:00–20:00",
+  services: ["Knygų skolinimas", "Skaityklos", "Kompiuteriai"],
+  type: "library",
+  position: [54.906308410619495, 23.955807996294812],
   },
 ];
 
-// 📍 Center
 const position: [number, number] = [54.89822660028058, 23.932811862054045];
 
-// 🔒 Disable interactions
 function DisableMapInteractions() {
   const map = useMap();
 
@@ -135,7 +190,6 @@ function DisableMapInteractions() {
   return null;
 }
 
-// 🗺️ Map
 export default function Map({ onSelectBuilding }: MapProps) {
   return (
     <MapContainer
@@ -155,6 +209,7 @@ export default function Map({ onSelectBuilding }: MapProps) {
         <Marker
           key={building.id}
           position={building.position}
+          icon={getIcon(building.type)}
           eventHandlers={{
             click: () => onSelectBuilding(building),
           }}

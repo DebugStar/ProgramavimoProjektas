@@ -868,3 +868,15 @@ footer { padding: var(--sp-6) 0 var(--sp-7); color: var(--text-secondary); }
   max-width: 80%;           /* ← This is the key: limits the text area */
   min-width: 0;               /* Allows flex shrinking + text wrapping */
 }
+
+/* ==============================
+   Map custom markers
+   ============================== */
+.custom-marker {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3px solid var(--surface);
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.35);
+}
