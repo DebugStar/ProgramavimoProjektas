@@ -1,11 +1,21 @@
 import { useEffect } from "react";
+import L from "leaflet";
 import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+
+import markerHouse from "../../assets/house.png";
+import markerFaculty from "../../assets/faculty.png";
+import markerLibrary from "../../assets/library.png";
+
+type BuildingType = "faculty" | "library" | "dorm";
 
 export interface Building {
   id: number;
   name: string;
   description: string;
+  workingHours: string;
+  services: string[];
+  type: BuildingType;
   position: [number, number];
 }
 
@@ -13,56 +23,160 @@ interface MapProps {
   onSelectBuilding: (building: Building) => void;
 }
 
-// Building names and descriptions
+const houseIcon = L.icon({
+  iconUrl: markerHouse,
+  iconSize: [40, 40],
+  iconAnchor: [20, 40],
+  className: "custom-marker",
+});
+
+const facultyIcon = L.icon({
+  iconUrl: markerFaculty,
+  iconSize: [40, 40],
+  iconAnchor: [20, 40],
+  className: "custom-marker",
+});
+
+const libraryIcon = L.icon({
+  iconUrl: markerLibrary,
+  iconSize: [40, 40],
+  iconAnchor: [20, 40],
+  className: "custom-marker",
+});
+
+function getIcon(type: Building["type"]) {
+  switch (type) {
+    case "faculty":
+      return facultyIcon;
+    case "library":
+      return libraryIcon;
+    case "dorm":
+      return houseIcon;
+    default:
+      return facultyIcon;
+  }
+}
+
 const buildings: Building[] = [
   {
     id: 1,
     name: "KTU 1 rūmai",
-    description: "Socialinių, humanitarinių mokslų ir menų fakultetas. Šiuose rūmuose vyksta pagrindinės socialinių, humanitarinių mokslų ir menų fakulteto paskaitos, seminarai bei studentų veiklos. Pastatas turi auditorijas, seminarų sales, administracines patalpas ir erdves kūrybiniams projektams. Čia studijuojama psichologija, sociologija, komunikacija ir menų kryptys. Rūmai taip pat atlieka kultūros ir renginių centrų funkcijas.",
+    description:
+      "Socialinių, humanitarinių mokslų ir menų fakultetas. Šiuose rūmuose vyksta pagrindinės socialinių, humanitarinių mokslų ir menų fakulteto paskaitos, seminarai bei studentų veiklos. Pastatas turi auditorijas, seminarų sales, administracines patalpas ir erdves kūrybiniams projektams. Čia studijuojama psichologija, sociologija, komunikacija ir menų kryptys. Rūmai taip pat atlieka kultūros ir renginių centrų funkcijas.",
+    workingHours: "I–V 08:00–17:00",
+    services: [
+      "Paskaitos",
+      "Seminarai",
+      "Kūrybiniai projektai",
+      "Renginiai",
+      "Konsultacijos",
+    ],
+    type: "faculty",
     position: [54.89902014942021, 23.917163524252686],
   },
   {
     id: 2,
     name: "KTU 2 rūmai",
-    description: "Ekonomikos ir verslo fakultetas. Šiuose rūmuose įsikūręs Ekonomikos ir verslo fakultetas, vyksta paskaitos, seminarai ir studentų projektų pristatymai. Pastate yra auditorijos, konferencijų salės ir administraciniai kabinetai. Fakultetas rengia įvairias verslo, vadybos, finansų ir rinkodaros studijų programas, taip pat organizuoja karjeros ir praktikos renginius studentams.",
+    description:
+      "Ekonomikos ir verslo fakultetas. Šiuose rūmuose įsikūręs Ekonomikos ir verslo fakultetas, vyksta paskaitos, seminarai ir studentų projektų pristatymai. Pastate yra auditorijos, konferencijų salės ir administraciniai kabinetai. Fakultetas rengia įvairias verslo, vadybos, finansų ir rinkodaros studijų programas, taip pat organizuoja karjeros ir praktikos renginius studentams.",
+    workingHours: "I–V 08:00–17:00",
+    services: [
+      "Paskaitos",
+      "Projektai",
+      "Karjeros renginiai",
+      "Verslo konsultacijos",
+    ],
+    type: "faculty",
     position: [54.899015, 23.922272],
   },
   {
     id: 3,
     name: "KTU 4 rūmai",
-    description: "Cheminės technologijos fakultetas. Šiuose rūmuose veikia Cheminės technologijos fakultetas, vykdomos laboratorinės praktikos, paskaitos ir tyrimai maisto, chemijos bei technologijų srityse. Pastatas turi modernias laboratorijas, auditorijas, biurus mokslininkams ir studentams. Tai pagrindinė vieta, kur vyksta moksliniai projektai, eksperimentai ir pramonės bendradarbiavimo iniciatyvos.",
+    description:
+      "Cheminės technologijos fakultetas. Šiuose rūmuose veikia Cheminės technologijos fakultetas, vykdomos laboratorinės praktikos, paskaitos ir tyrimai maisto, chemijos bei technologijų srityse. Pastatas turi modernias laboratorijas, auditorijas, biurus mokslininkams ir studentams. Tai pagrindinė vieta, kur vyksta moksliniai projektai, eksperimentai ir pramonės bendradarbiavimo iniciatyvos.",
+    workingHours: "I–V 08:00–17:00",
+    services: [
+      "Laboratoriniai darbai",
+      "Tyrimai",
+      "Eksperimentai",
+      "Praktikos",
+    ],
+    type: "faculty",
     position: [54.905103067316574, 23.951561150283638],
   },
   {
     id: 5,
     name: "KTU 9 rūmai",
-    description: "Statybos ir architektūros fakultetas. Šiuose rūmuose įsikūręs Statybos ir architektūros fakultetas, vykdomos paskaitos, seminarai ir projektų darbai. Pastatas turi projektavimo studijas, auditorijas, laboratorijas statybos technologijoms, taip pat administracines patalpas. Fakultetas rengia studentus architektūros, statybos inžinerijos, urbanistikos ir projektų valdymo srityse.",
+    description:
+      "Statybos ir architektūros fakultetas. Šiuose rūmuose įsikūręs Statybos ir architektūros fakultetas, vykdomos paskaitos, seminarai ir projektų darbai. Pastatas turi projektavimo studijas, auditorijas, laboratorijas statybos technologijoms, taip pat administracines patalpas. Fakultetas rengia studentus architektūros, statybos inžinerijos, urbanistikos ir projektų valdymo srityse.",
+    workingHours: "I–V 08:00–17:00",
+    services: [
+      "Projektavimas",
+      "Architektūros studijos",
+      "Statybos laboratorijos",
+      "Seminarai",
+    ],
+    type: "faculty",
     position: [54.90585315053022, 23.956139971843],
   },
   {
     id: 6,
     name: "KTU 10 rūmai",
-    description: "Elektros ir elektronikos inžinerijos fakultetas. Šiuose rūmuose veikia Elektros ir elektronikos inžinerijos fakultetas, vykdomos laboratorinės praktikos, paskaitos ir projektai. Pastate yra modernios laboratorijos elektronikos, automatizavimo ir elektros inžinerijos tyrimams, auditorijos ir seminarų salės. Fakultetas rengia specialistus tiek teorinėms, tiek praktinėms technologijų disciplinoms.",
+    description:
+      "Elektros ir elektronikos inžinerijos fakultetas. Šiuose rūmuose veikia Elektros ir elektronikos inžinerijos fakultetas, vykdomos laboratorinės praktikos, paskaitos ir projektai. Pastate yra modernios laboratorijos elektronikos, automatizavimo ir elektros inžinerijos tyrimams, auditorijos ir seminarų salės. Fakultetas rengia specialistus tiek teorinėms, tiek praktinėms technologijų disciplinoms.",
+    workingHours: "I–V 08:00–17:00",
+    services: [
+      "Elektronikos laboratorijos",
+      "Automatikos projektai",
+      "Praktikos",
+      "Paskaitos",
+    ],
+    type: "faculty",
     position: [54.90475028329401, 23.956727484865812],
   },
   {
     id: 7,
     name: "KTU 11 rūmai",
-    description: "Informatikos fakulteto ir Matematikos bei gamtos mokslų fakultetas. Šiuose rūmuose įsikūręs Informatikos fakultetas ir Matematikos bei gamtos mokslų fakultetas. Čia vyksta paskaitos, laboratorinės praktikos, projektai informatikos, matematikos, fizikos ir biologijos srityse. Pastatas turi modernias auditorijas, kompiuterių sales, laboratorijas ir administracines patalpas, skirtas studentų kūrybai ir moksliniams tyrimams.",
+    description:
+      "Informatikos fakulteto ir Matematikos bei gamtos mokslų fakultetas. Šiuose rūmuose įsikūręs Informatikos fakultetas ir Matematikos bei gamtos mokslų fakultetas. Čia vyksta paskaitos, laboratorinės praktikos, projektai informatikos, matematikos, fizikos ir biologijos srityse. Pastatas turi modernias auditorijas, kompiuterių sales, laboratorijas ir administracines patalpas, skirtas studentų kūrybai ir moksliniams tyrimams.",
+    workingHours: "I–V 08:00–17:00",
+    services: [
+      "Programavimas",
+      "Kompiuterių klasės",
+      "Laboratorijos",
+      "Projektai",
+    ],
+    type: "faculty",
     position: [54.90392444510232, 23.95780545724072],
   },
   {
     id: 8,
     name: "KTU 12 rūmai",
-    description: "Mechanikos inžinerijos ir dizaino fakultetas. Šiuose rūmuose veikia Mechanikos inžinerijos ir dizaino fakultetas, vykdomos praktinės užduotys, paskaitos ir projektai. Pastatas turi modernias dirbtuves, laboratorijas, auditorijas ir kūrybines erdves. Fakultetas rengia specialistus mechanikos, inžinerijos, automatikos, transporto ir dizaino srityse, taip pat vykdo mokslinius ir taikomuosius tyrimus.",
+    description:
+      "Mechanikos inžinerijos ir dizaino fakultetas. Šiuose rūmuose veikia Mechanikos inžinerijos ir dizaino fakultetas, vykdomos praktinės užduotys, paskaitos ir projektai. Pastatas turi modernias dirbtuves, laboratorijas, auditorijas ir kūrybines erdves. Fakultetas rengia specialistus mechanikos, inžinerijos, automatikos, transporto ir dizaino srityse, taip pat vykdo mokslinius ir taikomuosius tyrimus.",
+    workingHours: "I–V 08:00–17:00",
+    services: [
+      "Dirbtuvės",
+      "Mechanikos laboratorijos",
+      "Dizaino projektai",
+      "Prototipavimas",
+    ],
+    type: "faculty",
     position: [54.900992245794654, 23.96044377066373],
+  },
+  {
+  id: 9,
+  name: "KTU Biblioteka",
+  description: "Bibliotekos aprašymas...",
+  workingHours: "I–V 08:00–20:00",
+  services: ["Knygų skolinimas", "Skaityklos", "Kompiuteriai"],
+  type: "library",
+  position: [54.906308410619495, 23.955807996294812],
   },
 ];
 
-// Map center position
 const position: [number, number] = [54.89822660028058, 23.932811862054045];
 
-//Function to disable scrolling through the map and changing the ability to zoom in or out
 function DisableMapInteractions() {
   const map = useMap();
 
@@ -76,7 +190,6 @@ function DisableMapInteractions() {
   return null;
 }
 
-// Main map export function
 export default function Map({ onSelectBuilding }: MapProps) {
   return (
     <MapContainer
@@ -96,6 +209,7 @@ export default function Map({ onSelectBuilding }: MapProps) {
         <Marker
           key={building.id}
           position={building.position}
+          icon={getIcon(building.type)}
           eventHandlers={{
             click: () => onSelectBuilding(building),
           }}

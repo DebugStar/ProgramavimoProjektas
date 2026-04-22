@@ -876,20 +876,12 @@ footer { padding: var(--sp-6) 0 var(--sp-7); color: var(--text-secondary); }
   min-width: 0;               /* Allows flex shrinking + text wrapping */
 }
 
-
-.input:focus-visible {
-  outline: 1px solid #000;
-  outline-offset: 1px;
-  border-radius: 14px;
-  z-index: 1;
+/* Map marker preset */
+.custom-marker {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3px solid var(--surface);
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.35);
 }
-
-.container--full {
-  width: 100%;
-  max-width: none;
-  margin: 0;
-  padding-left: var(--sp-6);
-  padding-right: var(--sp-6);
-}
-
-
