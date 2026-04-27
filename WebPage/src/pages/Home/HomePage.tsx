@@ -82,6 +82,12 @@ export default function HomePage({ theme, onToggleTheme }: HomePageProps) {
     [],
   );
 
+  const handleDeleteAllSessions = useCallback(async () => {
+    setSessions([]);
+    setMessagesBySession({});
+    setActiveSessionId(null);
+  }, []);
+
   const handleMessagesChange = useCallback(
     (next: ChatMessage[]) => {
       if (!activeSessionId) return;
@@ -124,6 +130,7 @@ export default function HomePage({ theme, onToggleTheme }: HomePageProps) {
           onSelectSession={handleSelectSession}
           onRenameSession={handleRenameSession}
           onDeleteSession={handleDeleteSession}
+          onDeleteAllSessions={handleDeleteAllSessions}
         />
       }
       rightMain={

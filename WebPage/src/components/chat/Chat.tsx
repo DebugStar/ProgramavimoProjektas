@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { normalizeCitations } from "./normalizeCitations";
 import type { NormalizedCitation } from "./normalizeCitations";
+import { extractCitationsFromAnswer } from "./extractCitationsFromAnswer";
 
 export type { NormalizedCitation };
 
@@ -133,16 +134,33 @@ export default function Chat({
       if (!res.ok) {
         throw new Error(`Chat request failed: ${res.status}`);
       }
-      const data = (await res.json()) as { response?: string; citations?: unknown };
+      const data = (await res.json()) as {
+        response?: string;
+        citations?: unknown;
+        sources?: unknown;
+        references?: unknown;
+        source_documents?: unknown;
+        retrieved_chunks?: unknown;
+      };
       if (controller.signal.aborted) return;
       if (sessionIdRef.current !== idAtSend) return;
-      const normalized = normalizeCitations(data.citations);
+      const rawCitations =
+        data.citations ??
+        data.sources ??
+        data.references ??
+        data.source_documents ??
+        data.retrieved_chunks;
+      const normalized = normalizeCitations(rawCitations);
+      const fallbackCitations =
+        normalized.length > 0
+          ? normalized
+          : extractCitationsFromAnswer(data.response ?? "");
       const botMessage: ChatMessage = {
         id: `assistant-${Date.now()}`,
         role: "assistant",
         text: data.response ?? "(No response text from server.)",
         timestamp: Date.now(),
-        ...(normalized.length > 0 ? { citations: normalized } : {}),
+        ...(fallbackCitations.length > 0 ? { citations: fallbackCitations } : {}),
       };
       onMessagesChange([...afterUser, botMessage]);
     } catch (err) {

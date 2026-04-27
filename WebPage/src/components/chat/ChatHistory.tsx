@@ -29,6 +29,11 @@ export interface ChatHistoryProps {
    * Throw/reject to report a failure; the UI will show retry feedback.
    */
   onDeleteSession?: (sessionId: string) => void | Promise<void>;
+  /**
+   * Called when user confirms deletion of all chats.
+   * Throw/reject to report a failure.
+   */
+  onDeleteAllSessions?: () => void | Promise<void>;
 }
 
 function formatSessionTime(ms: number): string {
@@ -85,6 +90,7 @@ export default function ChatHistory({
   onCreateNewChat,
   onRenameSession,
   onDeleteSession,
+  onDeleteAllSessions,
 }: ChatHistoryProps) {
   const hasSessions = sessions.length > 0;
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
@@ -93,6 +99,7 @@ export default function ChatHistory({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savingSessionId, setSavingSessionId] = useState<string | null>(null);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
   const [deleteErrorSessionId, setDeleteErrorSessionId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -227,6 +234,26 @@ export default function ChatHistory({
     }
   };
 
+  const confirmAndDeleteAll = async () => {
+    if (!hasSessions || deletingSessionId || savingSessionId || isDeletingAll) return;
+    const ok = window.confirm(
+      "Delete all chats? This action is irreversible and cannot be undone.",
+    );
+    if (!ok) return;
+    setDeleteErrorSessionId(null);
+    setDeleteError(null);
+    setIsDeletingAll(true);
+    try {
+      await onDeleteAllSessions?.();
+      setToastMessage("All chats deleted");
+    } catch {
+      setDeleteErrorSessionId("__all__");
+      setDeleteError("Could not delete all chats. Please try again.");
+    } finally {
+      setIsDeletingAll(false);
+    }
+  };
+
   const clearFilters = () => {
     setNameFilter("");
     setDateFrom("");
@@ -244,9 +271,31 @@ export default function ChatHistory({
       >
         Create new chat
       </button>
+      <button
+        type="button"
+        className="chat-history-inline-btn chat-history-clear-all"
+        onClick={() => void confirmAndDeleteAll()}
+        disabled={!hasSessions || Boolean(deletingSessionId) || isDeletingAll}
+        aria-disabled={!hasSessions || Boolean(deletingSessionId) || isDeletingAll}
+      >
+        {isDeletingAll ? "Deleting chats..." : "Delete all chats"}
+      </button>
       {toastMessage && (
         <div className="chat-history-toast" role="status" aria-live="polite">
           {toastMessage}
+        </div>
+      )}
+      {deleteErrorSessionId === "__all__" && deleteError && (
+        <div className="chat-history-delete-error" role="alert">
+          <span>{deleteError}</span>
+          <button
+            type="button"
+            className="chat-history-inline-btn chat-history-inline-btn--retry"
+            onClick={() => void confirmAndDeleteAll()}
+            disabled={isDeletingAll}
+          >
+            Retry
+          </button>
         </div>
       )}
       <h3 className="chat-history-title">Chats</h3>
