@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import PageLayout from "../../components/layout/PageLayout/PageLayout";
 import Header from "../../components/layout/Header/Header";
 import { TopNav } from "../../components/layout/TopNav/TopNav";
@@ -16,6 +16,7 @@ export interface HomePageProps {
 export default function HomePage({ theme, onToggleTheme }: HomePageProps) {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const didAutoStartForEmptyStateRef = useRef(false);
   const [messagesBySession, setMessagesBySession] = useState<
     Record<string, ChatMessage[]>
   >({});
@@ -110,6 +111,16 @@ export default function HomePage({ theme, onToggleTheme }: HomePageProps) {
     },
     [activeSessionId],
   );
+
+  useEffect(() => {
+    if (sessions.length === 0 && activeSessionId === null) {
+      if (didAutoStartForEmptyStateRef.current) return;
+      didAutoStartForEmptyStateRef.current = true;
+      handleCreateNewChat();
+      return;
+    }
+    didAutoStartForEmptyStateRef.current = false;
+  }, [sessions.length, activeSessionId, handleCreateNewChat]);
 
   return (
     <PageLayout

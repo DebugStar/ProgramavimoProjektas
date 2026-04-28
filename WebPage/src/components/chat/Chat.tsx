@@ -60,6 +60,7 @@ export default function Chat({
   const [isOnline] = useState(true);
   const [feedback, setFeedback] = useState<Record<string, "up" | "down">>({});
   const [activeTab, setActiveTab] = useState<ChatWidgetTab>("chat");
+  const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -82,6 +83,12 @@ export default function Chat({
     setInput("");
     setActiveTab("chat");
   }, [sessionId]);
+
+  useEffect(() => {
+    if (sessionId !== null && !isLoading) {
+      inputRef.current?.focus();
+    }
+  }, [sessionId, isLoading]);
 
   const handleStop = () => {
     abortControllerRef.current?.abort();
@@ -551,6 +558,7 @@ export default function Chat({
           Message to chatbot
         </label>
         <input
+          ref={inputRef}
           id="chat-input"
           type="text"
           className="input"
