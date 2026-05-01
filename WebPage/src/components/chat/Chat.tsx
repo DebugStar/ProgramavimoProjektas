@@ -5,7 +5,6 @@ import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
-import { normalizeCitations } from "./normalizeCitations";
 import type { NormalizedCitation } from "./normalizeCitations";
 import { extractCitationsFromAnswer } from "./extractCitationsFromAnswer";
 
@@ -166,7 +165,7 @@ export default function Chat({
         role: m.role,
         content: m.text,
       }));
-      const endpoint = API_URL ? `${API_URL}/api/chat` : "/api/chat";
+      const endpoint = API_URL ? `${API_URL}/api/chat/stream` : "/api/chat/stream";
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -174,37 +173,78 @@ export default function Chat({
         body: JSON.stringify({ message: userText, conversation_history: history }),
       });
       if (!res.ok) {
-        throw new Error(`Chat request failed: ${res.status}`);
+        let rateLimitMessage = "";
+        if (res.status === 429) {
+          try {
+            const maybeJson = (await res.json()) as { response?: string; detail?: string };
+            rateLimitMessage = maybeJson.response ?? maybeJson.detail ?? "";
+          } catch {
+            rateLimitMessage = (await res.text()).trim();
+          }
+        }
+        throw new Error(
+          res.status === 429
+            ? rateLimitMessage || "Too many requests. Please wait a moment and try again."
+            : `Chat request failed: ${res.status}`,
+        );
       }
-      const data = (await res.json()) as {
-        response?: string;
-        citations?: unknown;
-        sources?: unknown;
-        references?: unknown;
-        source_documents?: unknown;
-        retrieved_chunks?: unknown;
-      };
+      if (!res.body) {
+        throw new Error("Streaming response body is missing.");
+      }
       if (controller.signal.aborted) return;
       if (sessionIdRef.current !== idAtSend) return;
-      const rawCitations =
-        data.citations ??
-        data.sources ??
-        data.references ??
-        data.source_documents ??
-        data.retrieved_chunks;
-      const normalized = normalizeCitations(rawCitations);
-      const fallbackCitations =
-        normalized.length > 0
-          ? normalized
-          : extractCitationsFromAnswer(data.response ?? "");
-      const botMessage: ChatMessage = {
-        id: `assistant-${Date.now()}`,
-        role: "assistant",
-        text: data.response ?? "(No response text from server.)",
-        timestamp: Date.now(),
-        ...(fallbackCitations.length > 0 ? { citations: fallbackCitations } : {}),
-      };
-      onMessagesChange([...afterUser, botMessage]);
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      const botMessageId = `assistant-${Date.now()}`;
+      let streamedText = "";
+      const baseTimestamp = Date.now();
+
+      // Add placeholder assistant bubble and then append stream chunks in-place.
+      onMessagesChange([
+        ...afterUser,
+        { id: botMessageId, role: "assistant", text: "", timestamp: baseTimestamp },
+      ]);
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        if (controller.signal.aborted) {
+          await reader.cancel().catch(() => {});
+          return;
+        }
+        if (sessionIdRef.current !== idAtSend) {
+          await reader.cancel().catch(() => {});
+          return;
+        }
+
+        const chunkText = decoder.decode(value, { stream: true });
+        if (!chunkText) continue;
+        streamedText += chunkText;
+        onMessagesChange([
+          ...afterUser,
+          {
+            id: botMessageId,
+            role: "assistant",
+            text: streamedText,
+            timestamp: baseTimestamp,
+          },
+        ]);
+      }
+
+      streamedText += decoder.decode();
+      const fallbackCitations = extractCitationsFromAnswer(streamedText);
+
+      onMessagesChange([
+        ...afterUser,
+        {
+          id: botMessageId,
+          role: "assistant",
+          text: streamedText || "(No response text from server.)",
+          timestamp: baseTimestamp,
+          ...(fallbackCitations.length > 0 ? { citations: fallbackCitations } : {}),
+        },
+      ]);
     } catch (err) {
       // If the user cancels, don't show an error bubble.
       if (
@@ -214,10 +254,14 @@ export default function Chat({
         return;
       }
       if (sessionIdRef.current !== idAtSend) return;
+      const errMessage =
+        err instanceof Error && err.message
+          ? err.message
+          : "Sorry, I couldn't reach the server. Please try again.";
       const errorMessage: ChatMessage = {
         id: `assistant-${Date.now()}`,
         role: "assistant",
-        text: "Sorry, I couldn't reach the server. Please try again.",
+        text: errMessage,
         timestamp: Date.now(),
         meta: { kind: "error", retryUserText: userText },
       };
