@@ -1,12 +1,15 @@
+import { useLocale } from "../../i18n/LocaleContext";
+
 interface DocumentPreviewProps {
     fileName?: string;
 }
 
 export default function DocumentPreview({ fileName }: DocumentPreviewProps) {
+    const { t } = useLocale();
     if (!fileName) {
         return (
             <div className="panel">
-                <p className="muted">Select a document to preview</p>
+                <p className="muted">{t("documents.previewEmpty")}</p>
             </div>
         );
     }

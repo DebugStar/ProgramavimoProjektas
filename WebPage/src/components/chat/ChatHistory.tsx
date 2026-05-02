@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocale } from "../../i18n/LocaleContext";
 
 export interface ChatSession {
   id: string;
@@ -36,18 +37,18 @@ export interface ChatHistoryProps {
   onDeleteAllSessions?: () => void | Promise<void>;
 }
 
-function formatSessionTime(ms: number): string {
+function formatSessionTime(ms: number, localeTag: string): string {
   const d = new Date(ms);
-  return d.toLocaleTimeString(undefined, {
+  return d.toLocaleTimeString(localeTag, {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
   });
 }
 
-function formatSessionDate(ms: number): string {
+function formatSessionDate(ms: number, localeTag: string): string {
   const d = new Date(ms);
-  return d.toLocaleDateString(undefined, {
+  return d.toLocaleDateString(localeTag, {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -92,6 +93,8 @@ export default function ChatHistory({
   onDeleteSession,
   onDeleteAllSessions,
 }: ChatHistoryProps) {
+  const { t, locale } = useLocale();
+  const dateLocaleTag = locale === "lt" ? "lt-LT" : "en-GB";
   const hasSessions = sessions.length > 0;
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
@@ -175,9 +178,9 @@ export default function ChatHistory({
 
   const validateTitle = (raw: string): string | null => {
     const trimmed = raw.trim();
-    if (!trimmed) return "Chat name cannot be empty.";
+    if (!trimmed) return t("chatHistory.errEmptyName");
     if (trimmed.length > MAX_CHAT_TITLE_LENGTH) {
-      return `Chat name must be ${MAX_CHAT_TITLE_LENGTH} characters or less.`;
+      return t("chatHistory.errNameTooLong", { max: MAX_CHAT_TITLE_LENGTH });
     }
     const lowerTrimmed = trimmed.toLocaleLowerCase();
     const duplicate = sessions.some(
@@ -186,7 +189,7 @@ export default function ChatHistory({
         s.title.trim().toLocaleLowerCase() === lowerTrimmed,
     );
     if (duplicate) {
-      return "A chat with this name already exists.";
+      return t("chatHistory.errDuplicate");
     }
     return null;
   };
@@ -204,17 +207,17 @@ export default function ChatHistory({
     setSavingSessionId(editingSession.id);
     try {
       await onRenameSession?.(editingSession.id, trimmed);
-      setToastMessage("Chat name updated");
+      setToastMessage(t("chatHistory.toastRenamed"));
       cancelEdit();
     } catch {
-      setSaveError("Could not update chat name. Please try again.");
+      setSaveError(t("chatHistory.errRename"));
       setSavingSessionId(null);
     }
   };
 
   const confirmAndDelete = async (session: ChatSession) => {
     if (deletingSessionId || savingSessionId) return;
-    const ok = window.confirm("Are you sure you want to delete this chat?");
+    const ok = window.confirm(t("chatHistory.confirmDelete"));
     if (!ok) return;
     await deleteSession(session.id);
   };
@@ -225,10 +228,10 @@ export default function ChatHistory({
     setDeletingSessionId(sessionId);
     try {
       await onDeleteSession?.(sessionId);
-      setToastMessage("Chat deleted successfully");
+      setToastMessage(t("chatHistory.toastDeleted"));
     } catch {
       setDeleteErrorSessionId(sessionId);
-      setDeleteError("Could not delete chat. Please try again.");
+      setDeleteError(t("chatHistory.errDelete"));
     } finally {
       setDeletingSessionId(null);
     }
@@ -236,19 +239,17 @@ export default function ChatHistory({
 
   const confirmAndDeleteAll = async () => {
     if (!hasSessions || deletingSessionId || savingSessionId || isDeletingAll) return;
-    const ok = window.confirm(
-      "Delete all chats? This action is irreversible and cannot be undone.",
-    );
+    const ok = window.confirm(t("chatHistory.confirmDeleteAll"));
     if (!ok) return;
     setDeleteErrorSessionId(null);
     setDeleteError(null);
     setIsDeletingAll(true);
     try {
       await onDeleteAllSessions?.();
-      setToastMessage("All chats deleted");
+      setToastMessage(t("chatHistory.toastDeletedAll"));
     } catch {
       setDeleteErrorSessionId("__all__");
-      setDeleteError("Could not delete all chats. Please try again.");
+      setDeleteError(t("chatHistory.errDeleteAll"));
     } finally {
       setIsDeletingAll(false);
     }
@@ -263,13 +264,13 @@ export default function ChatHistory({
   };
 
   return (
-    <aside className="chat-history" aria-label="Chat sessions">
+    <aside className="chat-history" aria-label={t("chatHistory.aria")}>
       <button
         type="button"
         className="btn chat-history-new"
         onClick={() => onCreateNewChat?.()}
       >
-        Create new chat
+        {t("chatHistory.newChat")}
       </button>
       <button
         type="button"
@@ -278,7 +279,7 @@ export default function ChatHistory({
         disabled={!hasSessions || Boolean(deletingSessionId) || isDeletingAll}
         aria-disabled={!hasSessions || Boolean(deletingSessionId) || isDeletingAll}
       >
-        {isDeletingAll ? "Deleting chats..." : "Delete all chats"}
+        {isDeletingAll ? t("chatHistory.deletingAll") : t("chatHistory.deleteAll")}
       </button>
       {toastMessage && (
         <div className="chat-history-toast" role="status" aria-live="polite">
@@ -294,11 +295,11 @@ export default function ChatHistory({
             onClick={() => void confirmAndDeleteAll()}
             disabled={isDeletingAll}
           >
-            Retry
+            {t("chatHistory.retry")}
           </button>
         </div>
       )}
-      <h3 className="chat-history-title">Chats</h3>
+      <h3 className="chat-history-title">{t("chatHistory.title")}</h3>
       <div className="chat-history-filter-toggle-wrap">
         <button
           type="button"
@@ -307,18 +308,18 @@ export default function ChatHistory({
           aria-controls="chat-history-filters-panel"
           onClick={() => setIsFilterOpen((v) => !v)}
         >
-          {isFilterOpen ? "Hide filters" : "Filters"}
+          {isFilterOpen ? t("chatHistory.filtersHide") : t("chatHistory.filtersShow")}
         </button>
-        {hasFilters && <span className="chat-history-filter-badge">Active</span>}
+        {hasFilters && <span className="chat-history-filter-badge">{t("chatHistory.filterActive")}</span>}
       </div>
       {isFilterOpen && (
         <div
           id="chat-history-filters-panel"
           className="chat-history-filters"
-          aria-label="Chat history filters"
+          aria-label={t("chatHistory.filtersAria")}
         >
           <label className="visually-hidden" htmlFor="chat-filter-name">
-            Search chat by name
+            {t("chatHistory.searchLabel")}
           </label>
           <input
             id="chat-filter-name"
@@ -326,11 +327,11 @@ export default function ChatHistory({
             className="chat-history-filter-input"
             value={nameFilter}
             onChange={(e) => setNameFilter(e.target.value)}
-            placeholder="Search by name"
+            placeholder={t("chatHistory.searchPlaceholder")}
           />
           <div className="chat-history-filter-row">
             <label className="chat-history-filter-label">
-              From date
+              {t("chatHistory.fromDate")}
               <input
                 type="date"
                 className="chat-history-filter-input"
@@ -339,7 +340,7 @@ export default function ChatHistory({
               />
             </label>
             <label className="chat-history-filter-label">
-              To date
+              {t("chatHistory.toDate")}
               <input
                 type="date"
                 className="chat-history-filter-input"
@@ -350,7 +351,7 @@ export default function ChatHistory({
           </div>
           <div className="chat-history-filter-row">
             <label className="chat-history-filter-label">
-              From time
+              {t("chatHistory.fromTime")}
               <input
                 type="time"
                 className="chat-history-filter-input"
@@ -359,7 +360,7 @@ export default function ChatHistory({
               />
             </label>
             <label className="chat-history-filter-label">
-              To time
+              {t("chatHistory.toTime")}
               <input
                 type="time"
                 className="chat-history-filter-input"
@@ -374,18 +375,18 @@ export default function ChatHistory({
             onClick={clearFilters}
             disabled={!hasFilters}
           >
-            Clear filters
+            {t("chatHistory.clearFilters")}
           </button>
         </div>
       )}
       <div className="chat-history-body">
         {!hasSessions ? (
           <p className="chat-history-empty" role="status">
-            No chat history yet
+            {t("chatHistory.empty")}
           </p>
         ) : filteredSessions.length === 0 ? (
           <p className="chat-history-empty" role="status">
-            No chats match current filters
+            {t("chatHistory.emptyFiltered")}
           </p>
         ) : (
           <ul className="chat-history-list">
@@ -417,16 +418,16 @@ export default function ChatHistory({
                         className="chat-history-item-time"
                         dateTime={new Date(session.timestamp).toISOString()}
                       >
-                        {formatSessionDate(session.timestamp)} •{" "}
-                        {formatSessionTime(session.timestamp)}
+                        {formatSessionDate(session.timestamp, dateLocaleTag)} •{" "}
+                        {formatSessionTime(session.timestamp, dateLocaleTag)}
                       </time>
                     </button>
                     <div className="chat-history-item-controls">
                       <button
                         type="button"
                         className="chat-history-edit-trigger"
-                        aria-label={`Edit name for ${session.title}`}
-                        title="Edit chat name"
+                        aria-label={t("chatHistory.editNameFor", { title: session.title })}
+                        title={t("chatHistory.editNameTitle")}
                         onClick={() => beginEdit(session)}
                         disabled={isDeleting}
                       >
@@ -448,8 +449,8 @@ export default function ChatHistory({
                       <button
                         type="button"
                         className="chat-history-delete-trigger"
-                        aria-label={`Delete ${session.title}`}
-                        title="Delete chat"
+                        aria-label={t("chatHistory.deleteChat", { title: session.title })}
+                        title={t("chatHistory.deleteChatTitle")}
                         onClick={() => void confirmAndDelete(session)}
                         disabled={isDeleting}
                       >
@@ -481,7 +482,7 @@ export default function ChatHistory({
                           onClick={() => void deleteSession(session.id)}
                           disabled={isDeleting}
                         >
-                          Retry
+                          {t("chatHistory.retry")}
                         </button>
                       </div>
                     )}
@@ -492,7 +493,7 @@ export default function ChatHistory({
                       htmlFor={`chat-rename-${session.id}`}
                       className="visually-hidden"
                     >
-                      Edit chat name
+                      {t("chatHistory.renameLabel")}
                     </label>
                     <input
                       id={`chat-rename-${session.id}`}
@@ -523,7 +524,7 @@ export default function ChatHistory({
                         onClick={() => void saveEdit()}
                         disabled={isSaving}
                       >
-                        Save
+                        {t("chatHistory.save")}
                       </button>
                       <button
                         type="button"
@@ -531,7 +532,7 @@ export default function ChatHistory({
                         onClick={cancelEdit}
                         disabled={isSaving}
                       >
-                        Cancel
+                        {t("chatHistory.cancel")}
                       </button>
                       {saveError && (
                         <button
@@ -540,7 +541,7 @@ export default function ChatHistory({
                           onClick={() => void saveEdit()}
                           disabled={isSaving}
                         >
-                          Retry
+                          {t("chatHistory.retry")}
                         </button>
                       )}
                     </div>

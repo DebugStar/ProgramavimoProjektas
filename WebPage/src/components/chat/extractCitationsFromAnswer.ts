@@ -1,4 +1,5 @@
 import type { NormalizedCitation } from "./normalizeCitations";
+import { CITATION_FALLBACK_TITLE, CITATION_FALLBACK_REF } from "./normalizeCitations";
 
 /**
  * Fallback parser for citation-like mentions inside assistant text when backend
@@ -22,8 +23,8 @@ export function extractCitationsFromAnswer(answer: string): NormalizedCitation[]
     if (seen.has(key)) continue;
     seen.add(key);
     out.push({
-      documentTitle: doc || "Untitled Document",
-      paragraphLabel: pagesRaw ? `Page(s) ${pagesRaw}` : "Referenced paragraph",
+      documentTitle: doc || CITATION_FALLBACK_TITLE,
+      paragraphLabel: pagesRaw ? `Page(s) ${pagesRaw}` : CITATION_FALLBACK_REF,
     });
   }
 
@@ -38,8 +39,8 @@ export function extractCitationsFromAnswer(answer: string): NormalizedCitation[]
     if (seen.has(key)) continue;
     seen.add(key);
     out.push({
-      documentTitle: doc || "Untitled Document",
-      paragraphLabel: page ? `Page ${page}` : "Referenced paragraph",
+      documentTitle: doc || CITATION_FALLBACK_TITLE,
+      paragraphLabel: page ? `Page ${page}` : CITATION_FALLBACK_REF,
     });
   }
 
@@ -53,8 +54,8 @@ export function extractCitationsFromAnswer(answer: string): NormalizedCitation[]
     if (seen.has(key)) continue;
     seen.add(key);
     out.push({
-      documentTitle: doc || "Untitled Document",
-      paragraphLabel: "Referenced paragraph",
+      documentTitle: doc || CITATION_FALLBACK_TITLE,
+      paragraphLabel: CITATION_FALLBACK_REF,
     });
   }
 

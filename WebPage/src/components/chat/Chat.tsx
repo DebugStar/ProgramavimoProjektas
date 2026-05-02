@@ -7,10 +7,11 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 import type { NormalizedCitation } from "./normalizeCitations";
 import { extractCitationsFromAnswer } from "./extractCitationsFromAnswer";
+import { localizeCitationParagraphLabel, localizeCitationTitle } from "./localizeCitation";
+import { useLocale } from "../../i18n/LocaleContext";
 
 export type { NormalizedCitation };
 
-const CHATBOT_NAME = "askKTU Chatbot";
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 const MarkdownCodeHighlighter = SyntaxHighlighter as unknown as ComponentType<Record<string, unknown>>;
 
@@ -36,9 +37,9 @@ export interface ChatProps {
   onMessagesChange: (messages: ChatMessage[]) => void;
 }
 
-function formatMessageTime(ms: number): string {
+function formatMessageTime(ms: number, localeTag: string): string {
   const d = new Date(ms);
-  return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleTimeString(localeTag, { hour: "2-digit", minute: "2-digit" });
 }
 
 function getLatestAssistantCitations(messages: ChatMessage[]): NormalizedCitation[] {
@@ -52,35 +53,37 @@ function getLatestAssistantCitations(messages: ChatMessage[]): NormalizedCitatio
 }
 
 const TITLE_TRUNCATE = 50;
-const markdownComponents: Components = {
-  code({ className, children, ...props }) {
-    const match = /language-(\w+)/.exec(className ?? "");
-    const code = String(children).replace(/\n$/, "");
-    const isCodeBlock = Boolean(match?.[1]) || code.includes("\n");
-    if (isCodeBlock) {
-      return (
-        <MarkdownCodeHighlighter
-          style={oneLight}
-          language={match?.[1] ?? "text"}
-          PreTag="div"
-          className="chat-markdown-codeblock"
-          {...props}
-        >
-          {code}
-        </MarkdownCodeHighlighter>
-      );
-    }
-    return (
-      <code className={`chat-markdown-inline-code ${className ?? ""}`} {...props}>
-        {children}
-      </code>
-    );
-  },
-  a({ ...props }) {
-    return <a {...props} target="_blank" rel="noopener noreferrer" />;
-  },
-};
 
+function createMarkdownComponents(): Components {
+  return {
+    code({ className, children, ...props }) {
+      const match = /language-(\w+)/.exec(className ?? "");
+      const code = String(children).replace(/\n$/, "");
+      const isCodeBlock = Boolean(match?.[1]) || code.includes("\n");
+      if (isCodeBlock) {
+        return (
+          <MarkdownCodeHighlighter
+            style={oneLight}
+            language={match?.[1] ?? "text"}
+            PreTag="div"
+            className="chat-markdown-codeblock"
+            {...props}
+          >
+            {code}
+          </MarkdownCodeHighlighter>
+        );
+      }
+      return (
+        <code className={`chat-markdown-inline-code ${className ?? ""}`} {...props}>
+          {children}
+        </code>
+      );
+    },
+    a({ ...props }) {
+      return <a {...props} target="_blank" rel="noopener noreferrer" />;
+    },
+  };
+}
 
 type ChatWidgetTab = "chat" | "sources";
 
@@ -89,6 +92,9 @@ export default function Chat({
   messages,
   onMessagesChange,
 }: ChatProps) {
+  const { t, locale } = useLocale();
+  const dateLocaleTag = locale === "lt" ? "lt-LT" : "en-GB";
+  const markdownComponents = useMemo(() => createMarkdownComponents(), []);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isOnline] = useState(true);
@@ -184,12 +190,12 @@ export default function Chat({
         }
         throw new Error(
           res.status === 429
-            ? rateLimitMessage || "Too many requests. Please wait a moment and try again."
-            : `Chat request failed: ${res.status}`,
+            ? rateLimitMessage || t("chat.rateLimit")
+            : t("chat.requestFailed", { status: res.status }),
         );
       }
       if (!res.body) {
-        throw new Error("Streaming response body is missing.");
+        throw new Error(t("chat.streamBodyMissing"));
       }
       if (controller.signal.aborted) return;
       if (sessionIdRef.current !== idAtSend) return;
@@ -240,7 +246,7 @@ export default function Chat({
         {
           id: botMessageId,
           role: "assistant",
-          text: streamedText || "(No response text from server.)",
+          text: streamedText || t("chat.noResponse"),
           timestamp: baseTimestamp,
           ...(fallbackCitations.length > 0 ? { citations: fallbackCitations } : {}),
         },
@@ -255,9 +261,7 @@ export default function Chat({
       }
       if (sessionIdRef.current !== idAtSend) return;
       const errMessage =
-        err instanceof Error && err.message
-          ? err.message
-          : "Sorry, I couldn't reach the server. Please try again.";
+        err instanceof Error && err.message ? err.message : t("chat.networkError");
       const errorMessage: ChatMessage = {
         id: `assistant-${Date.now()}`,
         role: "assistant",
@@ -338,13 +342,13 @@ export default function Chat({
   };
 
   return (
-    <section className="chat" aria-label="Chat" aria-busy={isLoading}>
+    <section className="chat" aria-label={t("chat.ariaLabel")} aria-busy={isLoading}>
       <header className="chat-header">
         <div className="chat-header-main">
           <div
             className="chat-header-avatar"
             role="img"
-            aria-label="Chatbot avatar"
+            aria-label={t("chat.botAvatar")}
           >
             <svg
               width="18"
@@ -357,7 +361,7 @@ export default function Chat({
             </svg>
           </div>
           <div className="chat-header-text">
-            <div className="chat-header-name">{CHATBOT_NAME}</div>
+            <div className="chat-header-name">{t("chat.botName")}</div>
             <div className="chat-header-status">
               <span
                 className={
@@ -369,7 +373,7 @@ export default function Chat({
                 aria-hidden="true"
               />
               <span className="chat-header-status-label">
-                {isOnline ? "Online & Ready" : "Offline & Unavailable"}
+                {isOnline ? t("chat.online") : t("chat.offline")}
               </span>
             </div>
           </div>
@@ -380,7 +384,7 @@ export default function Chat({
         <div
           className="chat-tabs"
           role="tablist"
-          aria-label="Chat widget sections"
+          aria-label={t("chat.tablistAria")}
           onKeyDown={handleTabsKeyDown}
         >
           <button
@@ -393,7 +397,7 @@ export default function Chat({
             tabIndex={activeTab === "chat" ? 0 : -1}
             onClick={() => setActiveTab("chat")}
           >
-            Chat
+            {t("chat.tabChat")}
           </button>
           <button
             type="button"
@@ -405,7 +409,7 @@ export default function Chat({
             tabIndex={activeTab === "sources" ? 0 : -1}
             onClick={() => setActiveTab("sources")}
           >
-            Sources
+            {t("chat.tabSources")}
           </button>
         </div>
 
@@ -420,15 +424,13 @@ export default function Chat({
             ref={listRef}
             className="chat-messages"
             role="log"
-            aria-label="Chat message list"
+            aria-label={t("chat.messagesAria")}
             aria-live="polite"
             tabIndex={0}
           >
         {messages.length === 0 && !isLoading && (
           <p className="chat-messages-empty" aria-live="polite">
-            {sessionId === null
-              ? "Create a new chat or pick one from the list to get started."
-              : "Start a conversation"}
+            {sessionId === null ? t("chat.emptyNoSession") : t("chat.emptyStart")}
           </p>
         )}
         {messages.map((message) => (
@@ -440,7 +442,7 @@ export default function Chat({
               <div
                 className="chat-message-avatar chat-message-avatar--assistant"
                 role="img"
-                aria-label="Chatbot avatar"
+                aria-label={t("chat.botAvatar")}
               >
                 <svg
                   width="16"
@@ -455,7 +457,7 @@ export default function Chat({
             )}
             <div className="chat-message-body">
               {message.role === "assistant" && (
-                <div className="chat-message-name">{CHATBOT_NAME}</div>
+                <div className="chat-message-name">{t("chat.botName")}</div>
               )}
               <div
                 className={
@@ -504,7 +506,7 @@ export default function Chat({
                     onClick={() => handleRetry(message.id)}
                     disabled={isLoading}
                   >
-                    Retry
+                    {t("chat.retry")}
                   </button>
                 </div>
               )}
@@ -512,7 +514,7 @@ export default function Chat({
                 className="chat-message-time"
                 dateTime={new Date(message.timestamp).toISOString()}
               >
-                {formatMessageTime(message.timestamp)}
+                {formatMessageTime(message.timestamp, dateLocaleTag)}
               </time>
               {message.role === "assistant" && message.meta?.kind !== "error" && (
                 <div className="chat-feedback">
@@ -520,14 +522,14 @@ export default function Chat({
                     type="button"
                     className={`chat-feedback-btn${feedback[message.id] === "up" ? " chat-feedback-btn--selected" : ""}`}
                     disabled={!!feedback[message.id]}
-                    aria-label="Helpful"
+                    aria-label={t("chat.feedbackHelpful")}
                     onClick={() => sendFeedback(message.id, "up", message.text, messages)}
                   >👍</button>
                   <button
                     type="button"
                     className={`chat-feedback-btn${feedback[message.id] === "down" ? " chat-feedback-btn--selected" : ""}`}
                     disabled={!!feedback[message.id]}
-                    aria-label="Not helpful"
+                    aria-label={t("chat.feedbackNotHelpful")}
                     onClick={() => sendFeedback(message.id, "down", message.text, messages)}
                   >👎</button>
                 </div>
@@ -537,7 +539,7 @@ export default function Chat({
               <div
                 className="chat-message-avatar chat-message-avatar--user"
                 role="img"
-                aria-label="User avatar"
+                aria-label={t("chat.userAvatar")}
               >
                 <svg
                   width="16"
@@ -555,8 +557,8 @@ export default function Chat({
         {isLoading && (
           <div className="chat-message chat-message--assistant">
             <div className="chat-message-body">
-              <div className="chat-message-name">{CHATBOT_NAME}</div>
-              <div className="chat-message-text">Thinking...</div>
+              <div className="chat-message-name">{t("chat.botName")}</div>
+              <div className="chat-message-text">{t("chat.thinking")}</div>
             </div>
           </div>
         )}
@@ -573,17 +575,18 @@ export default function Chat({
         >
           <p key={lastAssistantId ?? "none"} className="visually-hidden" aria-live="polite">
             {latestSources.length === 0
-              ? "No sources used for this response."
-              : `Sources list updated: ${latestSources.length} reference${latestSources.length === 1 ? "" : "s"}.`}
+              ? t("chat.sourcesEmptySr")
+              : t("chat.sourcesUpdatedSr", { count: latestSources.length })}
           </p>
           {latestSources.length === 0 ? (
             <p className="chat-sources-empty" role="status">
-              No sources used for this response.
+              {t("chat.sourcesEmpty")}
             </p>
           ) : (
-            <ul className="chat-sources-list" aria-label="Document references for the latest reply">
+            <ul className="chat-sources-list" aria-label={t("chat.sourcesListAria")}>
               {latestSources.map((c, i) => {
-                const titleFull = c.documentTitle;
+                const titleFull = localizeCitationTitle(c.documentTitle, t);
+                const paraDisplay = localizeCitationParagraphLabel(c.paragraphLabel, t);
                 const titleTrunc =
                   titleFull.length > TITLE_TRUNCATE
                     ? `${titleFull.slice(0, TITLE_TRUNCATE)}…`
@@ -599,7 +602,7 @@ export default function Chat({
                       >
                         {titleTrunc}
                       </h3>
-                      <p className="chat-source-para-ref">{c.paragraphLabel}</p>
+                      <p className="chat-source-para-ref">{paraDisplay}</p>
                       {c.snippet ? (
                         <p className="chat-source-snippet">{c.snippet}</p>
                       ) : null}
@@ -611,7 +614,7 @@ export default function Chat({
                             target="_blank"
                             rel="noopener noreferrer"
                           >
-                            Open document
+                            {t("chat.openDocument")}
                           </a>
                         ) : c.linkInvalid ? (
                           <span className="chat-source-link-broken">
@@ -631,8 +634,8 @@ export default function Chat({
                                 <line x1="12" y1="17" x2="12.01" y2="17" />
                               </svg>
                             </span>
-                            <span>Link unavailable</span>
-                            <span className="visually-hidden">. Invalid or broken link.</span>
+                            <span>{t("chat.linkUnavailable")}</span>
+                            <span className="visually-hidden">{t("chat.linkInvalidSr")}</span>
                           </span>
                         ) : null}
                       </div>
@@ -647,27 +650,27 @@ export default function Chat({
 
       <div className="ask">
         <label htmlFor="chat-input" className="visually-hidden">
-          Message to chatbot
+          {t("chat.inputLabel")}
         </label>
         <input
           ref={inputRef}
           id="chat-input"
           type="text"
           className="input"
-          placeholder="Type your message..."
+          placeholder={t("chat.inputPlaceholder")}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={isLoading || sessionId === null}
-          aria-label="Message to chatbot"
+          aria-label={t("chat.inputLabel")}
         />
         {isLoading && (
           <button
             type="button"
             className="chat-stop"
             onClick={handleStop}
-            aria-label="Stop generating"
-            title="Stop generating"
+            aria-label={t("chat.stopAria")}
+            title={t("chat.stopTitle")}
           >
             <svg
               width="20"
@@ -691,7 +694,7 @@ export default function Chat({
           className="chat-send"
           onClick={handleSend}
           disabled={!input.trim() || isLoading || sessionId === null}
-          aria-label="Send message"
+          aria-label={t("chat.sendAria")}
         >
           <svg
             width="20"

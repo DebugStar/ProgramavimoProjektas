@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocale } from "../../i18n/LocaleContext";
 
 interface LoginPageProps {
     onLoginSuccess: () => void;
@@ -8,6 +9,7 @@ const PRESET_USER = "Robots.txt";
 const PRESET_PASS = "KomandaX";
 
 export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
+    const { t } = useLocale();
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
@@ -19,23 +21,23 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
             localStorage.setItem("isAuthenticated", "true");
             onLoginSuccess();
         } else {
-            setError("Invalid username or password");
+            setError(t("login.errorInvalid"));
         }
     };
 
     return (
         <main className="container" style={{ minHeight: "70vh", display: "grid", placeItems: "center" }}>
             <section className="panel" style={{ width: "100%", maxWidth: 420 }}>
-                <h2>Log in</h2>
-                <p className="muted">Use your credentials to continue</p>
+                <h2>{t("login.title")}</h2>
+                <p className="muted">{t("login.subtitle")}</p>
 
                 <form className="stack" onSubmit={handleSubmit}>
                     <label>
-                        <span className="visually-hidden">Username</span>
+                        <span className="visually-hidden">{t("login.username")}</span>
                         <input
                             className="input"
                             type="text"
-                            placeholder="Username"
+                            placeholder={t("login.username")}
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             required
@@ -43,11 +45,11 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                     </label>
 
                     <label>
-                        <span className="visually-hidden">Password</span>
+                        <span className="visually-hidden">{t("login.password")}</span>
                         <input
                             className="input"
                             type="password"
-                            placeholder="Password"
+                            placeholder={t("login.password")}
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
@@ -59,7 +61,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                     )}
 
                     <button type="submit" className="btn btn--primary">
-                        Log in
+                        {t("login.submit")}
                     </button>
                 </form>
 
