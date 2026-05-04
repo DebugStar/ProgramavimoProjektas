@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocale } from "../../i18n/LocaleContext";
 
 
 interface DocumentItem {
@@ -12,6 +13,7 @@ interface DocumentListProps {
 
 
 export default function DocumentList({ onSelect }: DocumentListProps) {
+    const { t } = useLocale();
     const [documents, setDocuments] = useState<DocumentItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
@@ -41,10 +43,10 @@ export default function DocumentList({ onSelect }: DocumentListProps) {
 
     return (
         <div className="document-list">
-            <h2>Documents</h2>
+            <h2>{t("documents.listTitle")}</h2>
 
-            {loading && <p>Loading...</p>}
-            {error && <p>Could not load documents.</p>}
+            {loading && <p>{t("documents.loading")}</p>}
+            {error && <p>{t("documents.error")}</p>}
 
 
             <ul>
@@ -57,7 +59,7 @@ export default function DocumentList({ onSelect }: DocumentListProps) {
                     >
                         <div className="document-info">
                             <strong>{doc.name}</strong>
-                            <p>PDF Document</p>
+                            <p>{t("documents.pdfType")}</p>
                         </div>
 
                         <div style={{ display: "flex", gap: 12 }}>
@@ -70,7 +72,7 @@ export default function DocumentList({ onSelect }: DocumentListProps) {
                                     handleDownload(doc.name);
                                 }}
                             >
-                                Download
+                                {t("documents.download")}
                             </button>
                         </div>
                     </li>

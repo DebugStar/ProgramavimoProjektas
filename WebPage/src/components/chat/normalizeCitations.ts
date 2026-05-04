@@ -12,8 +12,12 @@ export interface NormalizedCitation {
   linkInvalid?: boolean;
 }
 
-const UNTITLED = "Untitled Document";
-const REF_PARA = "Referenced paragraph";
+/** Canonical English fallbacks — localized in UI via `localizeCitation*`. */
+export const CITATION_FALLBACK_TITLE = "Untitled Document";
+export const CITATION_FALLBACK_REF = "Referenced paragraph";
+
+const UNTITLED = CITATION_FALLBACK_TITLE;
+const REF_PARA = CITATION_FALLBACK_REF;
 const SNIPPET_MAX = 180;
 
 function pickString(obj: Record<string, unknown>, keys: string[]): string | undefined {

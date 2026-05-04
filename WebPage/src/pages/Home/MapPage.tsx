@@ -5,6 +5,7 @@ import { TopNav } from "../../components/layout/TopNav/TopNav";
 import Footer from "../../components/layout/Footer/Footer";
 import Map from "../../components/map/Map";
 import logoSrc from "../../assets/logo.png";
+import { useLocale } from "../../i18n/LocaleContext";
 
 export interface MapPageProps {
   theme: "light" | "dark";
@@ -21,6 +22,7 @@ export interface Building {
 }
 
 export default function MapPage({ theme, onToggleTheme }: MapPageProps) {
+  const { t } = useLocale();
   const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
 
   return (
@@ -41,10 +43,10 @@ export default function MapPage({ theme, onToggleTheme }: MapPageProps) {
               <p>{selectedBuilding.description}</p>
 
               <p style={{ marginTop: "12px" }}>
-                <strong>Darbo laikas:</strong> {selectedBuilding.workingHours}
+                <strong>{t("map.workingHours")}:</strong> {selectedBuilding.workingHours}
               </p>
 
-              <h3 style={{ marginTop: "16px" }}>Paslaugos</h3>
+              <h3 style={{ marginTop: "16px" }}>{t("map.services")}</h3>
 
               <div
                 style={{
@@ -83,13 +85,13 @@ export default function MapPage({ theme, onToggleTheme }: MapPageProps) {
                   borderRadius: "8px",
                 }}
               >
-                Atidaryti „Maps“
+                {t("map.openMaps")}
               </a>
             </>
           ) : (
             <>
-              <h2>Pasirinkite pastatą</h2>
-              <p>Paspauskite ant vietos nuorodų, kad matytumėte informaciją.</p>
+              <h2>{t("map.pickBuilding")}</h2>
+              <p>{t("map.pickBuildingHint")}</p>
             </>
           )}
         </div>
