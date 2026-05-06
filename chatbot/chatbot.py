@@ -107,15 +107,15 @@ def get_response(user_message: str, conversation_history: list):
     if is_prompt_injection(user_message):
         return "I'm a KTU university assistant and can only help with university-related questions.", 0
 
-    # Check cache (only for questions without conversation history)
+    # Check cache
     cache_key = get_cache_key(user_message)
     if not conversation_history and cache_key in response_cache:
-        return response_cache[cache_key]  # returns (answer, confidence) tuple
+        return response_cache[cache_key]
 
     # RAG: Search with scores
     raw_results = vectorstore.similarity_search_with_score(user_message, k=10)
 
-    # Deduplicate by content
+    # Deduplicate
     seen = set()
     results = []
     scores = []
@@ -128,25 +128,27 @@ def get_response(user_message: str, conversation_history: list):
         if len(results) == 5:
             break
 
-    # Calculate confidence (lower distance = higher confidence)
+    # Calculate confidence
     if scores:
-        avg_score = sum(scores) / len(scores)
-        confidence = max(0, min(100, round((1 - avg_score / 2) * 100)))
+        best_score = scores[0]
+        confidence = max(0, min(100, round((25 - best_score) / 15 * 100)))
     else:
         confidence = 0
 
+    # Build context
     context = "\n\n".join([
         f"[Source: {doc.metadata.get('source', 'unknown')}, Page: {doc.metadata.get('page', '?')}]\n{doc.page_content}"
         for doc in results
     ])
 
-    # Add confidence note for the LLM
+    # Add confidence note
     confidence_note = ""
     if confidence < 40:
         confidence_note = "\n\nNote: The available documents may not contain relevant information for this question. If unsure, advise the student to contact the student office."
     elif confidence < 60:
         confidence_note = "\n\nNote: The relevance of the found documents is moderate. Please indicate if you are not fully certain about the answer."
 
+    # Build messages
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     messages.extend(conversation_history)
     messages.append({
@@ -154,6 +156,7 @@ def get_response(user_message: str, conversation_history: list):
         "content": f"Context from university documents:\n{context}{confidence_note}\n\nStudent question: {user_message}",
     })
 
+    # Call LLM
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=messages,
@@ -162,6 +165,19 @@ def get_response(user_message: str, conversation_history: list):
     )
 
     answer = response.choices[0].message.content
+
+    # Adjust confidence based on LLM's response
+    no_info_phrases = [
+        "don't have information",
+        "neturiu informacijos",
+        "contact the student office",
+        "susisiekite",
+        "not covered",
+        "not mentioned",
+        "no information",
+    ]
+    if any(phrase in answer.lower() for phrase in no_info_phrases):
+        confidence = min(confidence, 20)
 
     # Save to cache
     if not conversation_history:
