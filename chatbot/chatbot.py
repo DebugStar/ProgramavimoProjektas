@@ -98,43 +98,60 @@ def is_prompt_injection(message: str) -> bool:
     return False
 
 
-def get_response(user_message: str, conversation_history: list) -> str:
-     # Check message length
+def get_response(user_message: str, conversation_history: list):
+    # Check message length
     if len(user_message) > 500:
-        return "Your message is too long. Please keep your question under 500 characters."
-    
+        return "Your message is too long. Please keep your question under 500 characters.", 0
+
     # Check for prompt injection
     if is_prompt_injection(user_message):
-        return "I'm a KTU university assistant and can only help with university-related questions."
+        return "I'm a KTU university assistant and can only help with university-related questions.", 0
 
     # Check cache (only for questions without conversation history)
     cache_key = get_cache_key(user_message)
     if not conversation_history and cache_key in response_cache:
-        return response_cache[cache_key]
+        return response_cache[cache_key]  # returns (answer, confidence) tuple
 
-    # RAG: Search for relevant document chunks with deduplication
-    raw_results = vectorstore.similarity_search(user_message, k=10)
+    # RAG: Search with scores
+    raw_results = vectorstore.similarity_search_with_score(user_message, k=10)
 
+    # Deduplicate by content
     seen = set()
     results = []
-    for doc in raw_results:
+    scores = []
+    for doc, score in raw_results:
         content_key = doc.page_content.strip()[:200]
         if content_key not in seen:
             seen.add(content_key)
             results.append(doc)
+            scores.append(score)
         if len(results) == 5:
             break
+
+    # Calculate confidence (lower distance = higher confidence)
+    if scores:
+        avg_score = sum(scores) / len(scores)
+        confidence = max(0, min(100, round((1 - avg_score / 2) * 100)))
+    else:
+        confidence = 0
 
     context = "\n\n".join([
         f"[Source: {doc.metadata.get('source', 'unknown')}, Page: {doc.metadata.get('page', '?')}]\n{doc.page_content}"
         for doc in results
     ])
 
+    # Add confidence note for the LLM
+    confidence_note = ""
+    if confidence < 40:
+        confidence_note = "\n\nNote: The available documents may not contain relevant information for this question. If unsure, advise the student to contact the student office."
+    elif confidence < 60:
+        confidence_note = "\n\nNote: The relevance of the found documents is moderate. Please indicate if you are not fully certain about the answer."
+
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     messages.extend(conversation_history)
     messages.append({
         "role": "user",
-        "content": f"Context from university documents:\n{context}\n\nStudent question: {user_message}",
+        "content": f"Context from university documents:\n{context}{confidence_note}\n\nStudent question: {user_message}",
     })
 
     response = client.chat.completions.create(
@@ -146,14 +163,14 @@ def get_response(user_message: str, conversation_history: list) -> str:
 
     answer = response.choices[0].message.content
 
-    # Save to cache (only for questions without conversation history)
+    # Save to cache
     if not conversation_history:
         if len(response_cache) >= CACHE_MAX_SIZE:
             oldest_key = next(iter(response_cache))
             del response_cache[oldest_key]
-        response_cache[cache_key] = answer
+        response_cache[cache_key] = (answer, confidence)
 
-    return answer
+    return answer, confidence
 
 
 def get_response_stream(user_message: str, conversation_history: list):
