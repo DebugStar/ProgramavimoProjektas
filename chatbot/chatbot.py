@@ -97,6 +97,18 @@ def is_prompt_injection(message: str) -> bool:
             return True
     return False
 
+def rephrase_question(user_message: str) -> str:
+    """Ask the LLM to rephrase the question for better search results."""
+    rephrase_response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[
+            {"role": "system", "content": "Rephrase the following question using different keywords to help search university documents. Return ONLY the rephrased question, nothing else."},
+            {"role": "user", "content": user_message},
+        ],
+        temperature=0.3,
+        max_tokens=100,
+    )
+    return rephrase_response.choices[0].message.content.strip()
 
 def get_response(user_message: str, conversation_history: list):
     # Check message length
@@ -134,6 +146,34 @@ def get_response(user_message: str, conversation_history: list):
         confidence = max(0, min(100, round((25 - best_score) / 15 * 100)))
     else:
         confidence = 0
+
+    # If confidence is low, try rephrasing the question
+    if confidence < 40:
+        rephrased = rephrase_question(user_message)
+        retry_results = vectorstore.similarity_search_with_score(rephrased, k=10)
+
+        retry_seen = set()
+        retry_docs = []
+        retry_scores = []
+        for doc, score in retry_results:
+            content_key = doc.page_content.strip()[:200]
+            if content_key not in retry_seen:
+                retry_seen.add(content_key)
+                retry_docs.append(doc)
+                retry_scores.append(score)
+            if len(retry_docs) == 5:
+                break
+
+        if retry_scores:
+            retry_confidence = max(0, min(100, round((25 - retry_scores[0]) / 15 * 100)))
+        else:
+            retry_confidence = 0
+
+        # Use rephrased results if they're better
+        if retry_confidence > confidence:
+            results = retry_docs
+            scores = retry_scores
+            confidence = retry_confidence
 
     # Build context
     context = "\n\n".join([
