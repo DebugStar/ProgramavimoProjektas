@@ -99,6 +99,10 @@ def is_prompt_injection(message: str) -> bool:
 
 
 def get_response(user_message: str, conversation_history: list) -> str:
+     # Check message length
+    if len(user_message) > 500:
+        return "Your message is too long. Please keep your question under 500 characters."
+    
     # Check for prompt injection
     if is_prompt_injection(user_message):
         return "I'm a KTU university assistant and can only help with university-related questions."
@@ -154,6 +158,10 @@ def get_response(user_message: str, conversation_history: list) -> str:
 
 def get_response_stream(user_message: str, conversation_history: list):
     # Check for prompt injection
+       # Check message length
+    if len(user_message) > 500:
+        yield "Your message is too long. Please keep your question under 500 characters."
+        return
     if is_prompt_injection(user_message):
         yield "I'm a KTU university assistant and can only help with university-related questions."
         return
