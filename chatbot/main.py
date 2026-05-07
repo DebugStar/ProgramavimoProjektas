@@ -2,14 +2,16 @@ import os
 import json
 from collections import Counter
 from datetime import datetime, timezone, date
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, UploadFile, File, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from .chatbot import get_response, get_response_stream
+from .chatbot import get_response, get_response_stream, embeddings, vectorstore
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 DOCUMENTS_DIR = os.path.join(os.path.dirname(__file__), "documents")
 LOG_FILE = os.path.join(os.path.dirname(__file__), "questions.log")
@@ -44,7 +46,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://askktu.online", "https://www.askktu.online", "http://localhost:8000"],
     allow_methods=["POST", "GET"],
-    allow_headers=["Content-Type"],
+    allow_headers=["Content-Type", "X-Admin-Password"],
 )
 
 
@@ -153,6 +155,39 @@ async def stats():
         "questions_today": today_count,
         "top_keywords": top_keywords,
     }
+
+
+@app.post("/api/admin/upload")
+async def admin_upload(
+    file: UploadFile = File(...),
+    x_admin_password: str = Header(...),
+):
+    admin_password = os.getenv("ADMIN_PASSWORD", "")
+    if not admin_password or x_admin_password != admin_password:
+        raise HTTPException(status_code=401, detail="Invalid admin password")
+
+    if not file.filename or not file.filename.endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are accepted")
+
+    save_path = os.path.join(DOCUMENTS_DIR, file.filename)
+    contents = await file.read()
+    with open(save_path, "wb") as f:
+        f.write(contents)
+
+    try:
+        loader = PyPDFLoader(save_path)
+        pages = loader.load()
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=500, chunk_overlap=50,
+            separators=["\n\n", "\n", ". ", " ", ""],
+        )
+        chunks = splitter.split_documents(pages)
+        vectorstore.add_documents(chunks)
+    except Exception as e:
+        os.remove(save_path)
+        raise HTTPException(status_code=500, detail=f"Indexing failed: {str(e)}")
+
+    return {"status": "ok", "filename": file.filename, "chunks": len(chunks)}
 
 
 @app.get("/health")

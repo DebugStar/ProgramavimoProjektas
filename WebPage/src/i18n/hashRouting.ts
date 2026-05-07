@@ -1,6 +1,6 @@
 import type { Locale } from "./messages";
 
-export type AppRoute = "home" | "map" | "documents" | "stats";
+export type AppRoute = "home" | "map" | "documents" | "stats" | "admin";
 
 const LOCALE_STORAGE_KEY = "askktu.locale";
 
@@ -32,6 +32,7 @@ function segmentToRoute(seg: string): AppRoute {
   if (s === "map") return "map";
   if (s === "documents" || s === "docs") return "documents";
   if (s === "stats") return "stats";
+  if (s === "admin") return "admin";
   return "home";
 }
 

@@ -310,6 +310,21 @@ export default function Chat({
     }).catch(() => {});
   };
 
+  const downloadChat = () => {
+    const lines = messages.map((m) => {
+      const time = new Date(m.timestamp).toLocaleString();
+      const role = m.role === "user" ? "You" : "askKTU Chatbot";
+      return `[${time}] ${role}:\n${m.text}`;
+    });
+    const blob = new Blob([lines.join("\n\n")], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `askktu-chat-${new Date().toISOString().slice(0, 10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -378,6 +393,20 @@ export default function Chat({
             </div>
           </div>
         </div>
+        <button
+          type="button"
+          className="chat-download-btn"
+          onClick={downloadChat}
+          disabled={messages.length === 0}
+          aria-label="Download chat"
+          title="Download chat"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+        </button>
       </header>
 
       <div className="chat-body">
@@ -428,9 +457,28 @@ export default function Chat({
             aria-live="polite"
             tabIndex={0}
           >
-        {messages.length === 0 && !isLoading && (
+        {messages.length === 0 && !isLoading && sessionId !== null && (
+          <div className="chat-suggestions" aria-live="polite">
+            <p className="chat-suggestions-hint">Try asking:</p>
+            {[
+              "What are the scholarship requirements at KTU?",
+              "How do I apply for a dormitory?",
+              "What are the academic rules for retaking exams?",
+            ].map((q) => (
+              <button
+                key={q}
+                type="button"
+                className="chat-suggestion-btn"
+                onClick={() => sendMessage(q, messages, { appendUserBubble: true })}
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+        )}
+        {messages.length === 0 && !isLoading && sessionId === null && (
           <p className="chat-messages-empty" aria-live="polite">
-            {sessionId === null ? t("chat.emptyNoSession") : t("chat.emptyStart")}
+            {t("chat.emptyNoSession")}
           </p>
         )}
         {messages.map((message) => (

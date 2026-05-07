@@ -60,6 +60,9 @@ export function TopNav() {
         <a href={buildHashRaw(locale, "faq")} aria-current={isCurrent("faq") ? "page" : undefined}>
           {t("nav.faq")}
         </a>
+        <a href={href("admin")} aria-current={isCurrent("admin") ? "page" : undefined}>
+          Admin
+        </a>
         <a href={EXTERNAL_LINKS.ais} target="_blank" rel="noreferrer">
           AIS
         </a>

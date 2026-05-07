@@ -2,6 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useState, type ReactNode } from
 import HomePage from "./pages/Home/HomePage";
 import DocumentPage from "./pages/Document/DocumentPage";
 import StatsPage from "./pages/Stats/StatsPage";
+import AdminPage from "./pages/Admin/AdminPage";
 import LoginPage from "./pages/Home/LoginPage";
 import { LocaleProvider, useLocale } from "./i18n/LocaleContext";
 import {
@@ -47,6 +48,10 @@ function AuthenticatedRoutes({
 
   if (route === "stats") {
     return <StatsPage />;
+  }
+
+  if (route === "admin") {
+    return <AdminPage />;
   }
 
   return <HomePage theme={theme} onToggleTheme={onToggleTheme} />;
