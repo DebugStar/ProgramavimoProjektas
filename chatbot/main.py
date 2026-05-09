@@ -123,14 +123,19 @@ async def documents():
 
 
 @app.get("/api/documents/{filename}")
-async def serve_document(filename: str):
+async def serve_document(filename: str, download: bool = False):
     if not filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are served")
     safe_name = os.path.basename(filename)
     file_path = os.path.join(DOCUMENTS_DIR, safe_name)
     if not os.path.isfile(file_path):
         raise HTTPException(status_code=404, detail="Document not found")
-    return FileResponse(file_path, media_type="application/pdf", filename=safe_name)
+    disposition = "attachment" if download else "inline"
+    return FileResponse(
+        file_path,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'{disposition}; filename="{safe_name}"'},
+    )
 
 
 @app.get("/api/stats")

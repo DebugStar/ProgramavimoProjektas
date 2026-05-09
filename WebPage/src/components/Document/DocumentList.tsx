@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useLocale } from "../../i18n/LocaleContext";
 
+const API_URL = import.meta.env.VITE_API_URL ?? "";
+
 
 interface DocumentItem {
     name: string;
@@ -19,9 +21,8 @@ export default function DocumentList({ onSelect }: DocumentListProps) {
     const [error, setError] = useState(false);
 
     const handleDownload = (fileName: string) => {
-        // Vite serves files from src/assets as /src/assets/...
         const link = document.createElement("a");
-        link.href = `/src/assets/documents/${fileName}`;
+        link.href = `${API_URL}/api/documents/${encodeURIComponent(fileName)}?download=true`;
         link.download = fileName;
         document.body.appendChild(link);
         link.click();
@@ -29,7 +30,7 @@ export default function DocumentList({ onSelect }: DocumentListProps) {
     };
 
     useEffect(() => {
-        fetch("/api/documents")
+        fetch(`${API_URL}/api/documents`)
             .then((res) => res.json())
             .then((data) => {
                 setDocuments(data);
