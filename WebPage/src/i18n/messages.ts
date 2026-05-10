@@ -11,6 +11,9 @@ const en = {
   "nav.langEn": "English",
   "nav.langLt": "Lithuanian",
 
+  "theme.switchToDark": "Switch to dark mode",
+  "theme.switchToLight": "Switch to light mode",
+
   "layout.skipToMain": "Skip to main content",
   "layout.mainAria": "Main content",
   "layout.leftAria": "Left column",
@@ -139,6 +142,9 @@ const lt: Record<keyof typeof en, string> = {
   "nav.language": "Kalba",
   "nav.langEn": "Anglų",
   "nav.langLt": "Lietuvių",
+
+  "theme.switchToDark": "Įjungti tamsiąją temą",
+  "theme.switchToLight": "Įjungti šviesiąją temą",
 
   "layout.skipToMain": "Pereiti prie pagrindinio turinio",
   "layout.mainAria": "Pagrindinis turinys",

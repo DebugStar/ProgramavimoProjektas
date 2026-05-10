@@ -43,15 +43,15 @@ function AuthenticatedRoutes({
   }
 
   if (route === "documents") {
-    return <DocumentPage />;
+    return <DocumentPage theme={theme} onToggleTheme={onToggleTheme} />;
   }
 
   if (route === "stats") {
-    return <StatsPage />;
+    return <StatsPage theme={theme} onToggleTheme={onToggleTheme} />;
   }
 
   if (route === "admin") {
-    return <AdminPage />;
+    return <AdminPage theme={theme} onToggleTheme={onToggleTheme} />;
   }
 
   return <HomePage theme={theme} onToggleTheme={onToggleTheme} />;

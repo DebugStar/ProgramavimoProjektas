@@ -7,7 +7,12 @@ import logoSrc from "../../assets/logo.png";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
-export default function AdminPage() {
+export interface AdminPageProps {
+    theme: "light" | "dark";
+    onToggleTheme: () => void;
+}
+
+export default function AdminPage({ theme, onToggleTheme }: AdminPageProps) {
     const [password, setPassword] = useState("");
     const [authed, setAuthed] = useState(false);
     const [authError, setAuthError] = useState("");
@@ -61,7 +66,13 @@ export default function AdminPage() {
 
     return (
         <PageLayoutDocs
-            header={<Header logo={{ src: logoSrc, alt: "askKTU logo" }} />}
+            header={
+                <Header
+                    logo={{ src: logoSrc, alt: "askKTU logo" }}
+                    theme={theme}
+                    onToggleTheme={onToggleTheme}
+                />
+            }
             topNav={<TopNav />}
             rightMain={
                 <section className="document-container">
