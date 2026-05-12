@@ -53,6 +53,15 @@ function getLatestAssistantCitations(messages: ChatMessage[]): NormalizedCitatio
   return [];
 }
 
+function getLastAssistantMessage(messages: ChatMessage[]): ChatMessage | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === "assistant") return messages[i];
+  }
+  return null;
+}
+
+type SourcesState = "loading" | "error" | "ready" | "empty";
+
 const TITLE_TRUNCATE = 50;
 
 function createMarkdownComponents(): Components {
@@ -112,6 +121,26 @@ export default function Chat({
     () => getLatestAssistantCitations(messages),
     [messages],
   );
+  const lastAssistantMessage = useMemo(
+    () => getLastAssistantMessage(messages),
+    [messages],
+  );
+  const lastErrorMessageId =
+    lastAssistantMessage?.meta?.kind === "error" ? lastAssistantMessage.id : null;
+  const sourcesState: SourcesState = useMemo(() => {
+    if (isLoading && latestSources.length === 0) return "loading";
+    if (lastAssistantMessage?.meta?.kind === "error") return "error";
+    if (latestSources.length > 0) return "ready";
+    return "empty";
+  }, [isLoading, latestSources, lastAssistantMessage]);
+
+  useEffect(() => {
+    console.debug("[Chat] sources panel state", {
+      state: sourcesState,
+      count: latestSources.length,
+      sessionId,
+    });
+  }, [sourcesState, latestSources.length, sessionId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -245,9 +274,14 @@ export default function Chat({
               }
               streamedText = streamedText.slice(newlineIdx + 1);
               sourcesHeaderParsed = true;
+              console.debug(
+                "[Chat] sources received from stream header",
+                { count: sourceCitations.length, confidence: streamConfidence },
+              );
             }
-          } catch {
+          } catch (parseErr) {
             sourcesHeaderParsed = true;
+            console.debug("[Chat] stream header not JSON, skipping sources parse", parseErr);
           }
         }
 
@@ -268,6 +302,14 @@ export default function Chat({
       const finalCitations = sourceCitations.length > 0
         ? sourceCitations
         : extractCitationsFromAnswer(streamedText);
+      if (sourceCitations.length === 0 && finalCitations.length > 0) {
+        console.debug(
+          "[Chat] sources extracted from response text",
+          { count: finalCitations.length },
+        );
+      } else if (finalCitations.length === 0) {
+        console.debug("[Chat] no sources returned for this response");
+      }
 
       onMessagesChange([
         ...afterUser,
@@ -286,9 +328,11 @@ export default function Chat({
         err instanceof DOMException &&
         (err.name === "AbortError" || err.message === "The operation was aborted.")
       ) {
+        console.debug("[Chat] request aborted by user", { sessionId: idAtSend });
         return;
       }
       if (sessionIdRef.current !== idAtSend) return;
+      console.error("[Chat] chat/source retrieval failed", err);
       const errMessage =
         err instanceof Error && err.message ? err.message : t("chat.networkError");
       const errorMessage: ChatMessage = {
@@ -659,14 +703,71 @@ export default function Chat({
           className="chat-sources-panel"
           role="tabpanel"
           aria-labelledby="chat-tab-sources"
+          aria-busy={sourcesState === "loading"}
           hidden={activeTab !== "sources"}
         >
-          <p key={lastAssistantId ?? "none"} className="visually-hidden" aria-live="polite">
-            {latestSources.length === 0
+          <p
+            key={`${sourcesState}-${lastAssistantId ?? "none"}`}
+            className="visually-hidden"
+            aria-live="polite"
+          >
+            {sourcesState === "loading"
+              ? t("chat.sourcesLoadingSr")
+              : sourcesState === "error"
+              ? t("chat.sourcesErrorSr")
+              : sourcesState === "empty"
               ? t("chat.sourcesEmptySr")
               : t("chat.sourcesUpdatedSr", { count: latestSources.length })}
           </p>
-          {latestSources.length === 0 ? (
+          {sourcesState === "loading" ? (
+            <div
+              className="chat-sources-loading"
+              role="status"
+              aria-label={t("chat.sourcesLoadingSr")}
+            >
+              <span className="chat-sources-spinner" aria-hidden="true" />
+              <span className="chat-sources-loading-text">{t("chat.sourcesLoading")}</span>
+              <ul className="chat-sources-skeleton" aria-hidden="true">
+                {[0, 1, 2].map((i) => (
+                  <li key={i} className="chat-sources-skeleton-item">
+                    <span className="chat-sources-skeleton-line chat-sources-skeleton-line--title" />
+                    <span className="chat-sources-skeleton-line chat-sources-skeleton-line--meta" />
+                    <span className="chat-sources-skeleton-line chat-sources-skeleton-line--snippet" />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : sourcesState === "error" ? (
+            <div className="chat-sources-error" role="alert">
+              <span className="chat-error-icon" aria-hidden="true">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 8v5" />
+                  <path d="M12 16h.01" />
+                </svg>
+              </span>
+              <span className="chat-sources-error-text">{t("chat.sourcesError")}</span>
+              {lastErrorMessageId ? (
+                <button
+                  type="button"
+                  className="chat-retry"
+                  onClick={() => handleRetry(lastErrorMessageId)}
+                  disabled={isLoading}
+                >
+                  {t("chat.sourcesRetry")}
+                </button>
+              ) : null}
+            </div>
+          ) : sourcesState === "empty" ? (
             <p className="chat-sources-empty" role="status">
               {t("chat.sourcesEmpty")}
             </p>
