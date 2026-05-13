@@ -89,7 +89,7 @@ export default function AdminPage({ theme, onToggleTheme }: AdminPageProps) {
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
                             />
-                            {authError && <p style={{ color: "#ef4444" }}>{authError}</p>}
+                            {authError && <p className="form-error-text">{authError}</p>}
                             <button type="submit" className="btn btn--primary">Continue</button>
                         </form>
                     ) : (
@@ -104,7 +104,7 @@ export default function AdminPage({ theme, onToggleTheme }: AdminPageProps) {
                                 required
                             />
                             {status && (
-                                <p style={{ color: status.kind === "success" ? "#16a34a" : "#ef4444", fontWeight: 600 }}>
+                                <p className={status.kind === "success" ? "form-success-text" : "form-error-text"}>
                                     {status.message}
                                 </p>
                             )}
