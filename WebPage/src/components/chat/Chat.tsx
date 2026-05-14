@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -110,7 +110,7 @@ export default function Chat({
   const [isOnline] = useState(true);
   const [feedback, setFeedback] = useState<Record<string, "up" | "down">>({});
   const [activeTab, setActiveTab] = useState<ChatWidgetTab>("chat");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -159,6 +159,12 @@ export default function Chat({
       inputRef.current?.focus();
     }
   }, [sessionId, isLoading]);
+
+  useEffect(() => {
+    if (!input && inputRef.current) {
+      inputRef.current.style.height = "auto";
+    }
+  }, [input]);
 
   const handleStop = () => {
     abortControllerRef.current?.abort();
@@ -398,12 +404,19 @@ export default function Chat({
     URL.revokeObjectURL(url);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
   };
+
+  const autoResize = useCallback(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, []);
 
   const lastAssistantId = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -841,14 +854,17 @@ export default function Chat({
         <label htmlFor="chat-input" className="visually-hidden">
           {t("chat.inputLabel")}
         </label>
-        <input
+        <textarea
           ref={inputRef}
           id="chat-input"
-          type="text"
-          className="input"
+          className="input chat-textarea"
           placeholder={t("chat.inputPlaceholder")}
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          rows={1}
+          onChange={(e) => {
+            setInput(e.target.value);
+            autoResize();
+          }}
           onKeyDown={handleKeyDown}
           disabled={isLoading || sessionId === null}
           aria-label={t("chat.inputLabel")}
